@@ -19,31 +19,7 @@ import os.path
 from os import path
 import shutil
 import tempfile
-
-file_types = [("All files (*.*)", "*.*")]
-          
-
-
-tmp_file = tempfile.NamedTemporaryFile(suffix=".png").name    
-
-fields = {
-    "File name" : "File name",
-    "File size" : "File size",
-    "GPSLatitude" : "GPS Latitude",
-    "GPSLongitude" : "GPS Longitude",
-    "Model" : "Camera Model",
-    "ExifImageWidth" : "Width",
-    "ExifImageHeight" : "Height",
-    "DateTime" : "Creating Date",
-    "static_line" : "*",
-    "MaxApertureValue" : "Aperture",
-    "ExposureTime" : "Exposure",
-    "FNumber" : "F-Stop",
-    "Flash" : "Flash",
-    "FocalLength" : "Focal Length",
-    "ISOSpeedRatings" : "ISO",
-    "ShutterSpeedValue" : "Shutter Speed"
-}
+from PIL import ImageEnhance
 
 def _get_if_exist(data, key):
     if key in data:
@@ -286,7 +262,84 @@ def resize(input_image_path, output_image_path):
         size_window.close()
 
 
+def brilho(filename, fator, output_filename):
+    image = Image.open(filename)
+    image.thumbnail((500,500))
+    enhancer = ImageEnhance.Brightness(image)
+    new_image = enhancer.enhance(fator)
+    new_image.save(output_filename)
+
+def contraste(filename, fator, output_filename):
+    image = Image.open(filename)
+    image.thumbnail((500,500))
+    enhancer = ImageEnhance.Contrast(image)
+    new_image = enhancer.enhance(fator)
+    new_image.save(output_filename)
+
+def cores(filename, fator, output_filename):
+    image = Image.open(filename)   
+    image.thumbnail((500,500))
+    enhancer = ImageEnhance.Color(image)
+    new_image = enhancer.enhance(fator)
+    new_image.save(output_filename)
+
+def nitidez(filename, fator, output_filename):
+    image = Image.open(filename)
+    image.thumbnail((500,500))
+    enhancer = ImageEnhance.Sharpness(image)
+    new_image = enhancer.enhance(fator)
+    new_image.save(output_filename)
+
+def aplica_efeito(values, tmp_file, window):
+    efeito_selecionado = values["-EFEITOS-"]
+    filename = values["-FILE-"]
+    factor = values["-FATOR-"]
+    
+    if filename:
+        if efeito_selecionado == "Normal":
+            efeitos[efeito_selecionado](filename, tmp_file)
+        else:
+            efeitos[efeito_selecionado](filename, factor, tmp_file)
+
+    
+    atualizar_imagem(tmp_file, window)            
+        
+
+file_types = [("All files (*.*)", "*.*")]
+
+tmp_file = tempfile.NamedTemporaryFile(suffix=".png").name    
+
+fields = {
+    "File name" : "File name",
+    "File size" : "File size",
+    "GPSLatitude" : "GPS Latitude",
+    "GPSLongitude" : "GPS Longitude",
+    "Model" : "Camera Model",
+    "ExifImageWidth" : "Width",
+    "ExifImageHeight" : "Height",
+    "DateTime" : "Creating Date",
+    "static_line" : "*",
+    "MaxApertureValue" : "Aperture",
+    "ExposureTime" : "Exposure",
+    "FNumber" : "F-Stop",
+    "Flash" : "Flash",
+    "FocalLength" : "Focal Length",
+    "ISOSpeedRatings" : "ISO",
+    "ShutterSpeedValue" : "Shutter Speed"
+}
+
+          
+efeitos = {
+    "Normal": shutil.copy,
+    "Brilho": brilho,
+    "Cores": cores,
+    "Contraste": contraste,
+    "Nitidez": nitidez
+}
+
 def main():
+    effect_names = list(efeitos.keys())
+
     menu_def = [['FILTROS', ['Thumbnail', 'Qualidade baixa', 'Preto e branco', 'Sepia', 'Diminuir cores']],
                 ['EDITAR', ["ESPELHADO", "CROP", "TAMANHO"]],
                 ['ROTACIONAR', ["DIREITA", "ESQUERDA"]],
@@ -311,6 +364,11 @@ def main():
             sg.Input(size=(25,1), key="-SAVE-"),
             sg.Combo(["PNG","JPEG"], key="-FORMAT-"),
             sg.Button("Salvar")
+        ],
+        [
+            sg.Text("Efeitos"),
+            sg.Combo(effect_names, default_value="Normal", key="-EFEITOS-", enable_events=True, readonly=True),
+            sg.Slider(range=(0, 5), default_value=2, resolution=0.1, orientation="h", enable_events=True, key="-FATOR-"),
         ]
     ]
 
@@ -377,6 +435,9 @@ def main():
         if event == "TAMANHO":
             resize(filename,tmp_file)
             atualizar_imagem(tmp_file, window)
+
+        if event in ["Carregar a Imagem", "-EFEITOS-", "-FATOR-"]:
+            aplica_efeito(value, tmp_file, window)
 
 
     window.close()
